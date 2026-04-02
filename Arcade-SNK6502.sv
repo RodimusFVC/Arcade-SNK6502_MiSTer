@@ -429,9 +429,10 @@ wire vblank = core_vb;
 wire hs = core_hs;
 wire vs = core_vs;
 
-// Pixel clock enable: generate from clk_vid, approximately matching
-// the CRTC pixel rate (~5.6 MHz = clk_vid / 8)
-// ce_pix comes directly from game core, locked to clk_master/2
+// ce_pix: sync rising edge from clk_master into clk_vid domain
+reg ce_pix_r, ce_pix_rr;
+always @(posedge clk_vid) begin ce_pix_r <= ce_pix; ce_pix_rr <= ce_pix_r; end
+wire ce_pix_sync = ce_pix_r & ~ce_pix_rr;
 
 wire no_rotate = status[2] | direct_video;
 wire rotate_ccw = 0;
@@ -444,6 +445,7 @@ arcade_video #(256,9,1) arcade_video
 	.*,
     .clk_video(clk_vid),
 	.RGB_in(rgb_out),
+	.ce_pix    (ce_pix_sync),
 	.HBlank(hblank),
 	.VBlank(vblank),
 	.HSync(hs),

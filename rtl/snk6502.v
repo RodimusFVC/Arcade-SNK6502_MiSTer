@@ -610,7 +610,7 @@ always @(posedge clk_master) begin
         fg_p1_latch    <= fg_p1_raw;
         bg_color_latch <= bg_color;
         fg_color_latch <= fg_color;
-    end else begin
+    end else if (ce_pix) begin
         bg_p0_latch <= {bg_p0_latch[6:0], 1'b0};
         bg_p1_latch <= {bg_p1_latch[6:0], 1'b0};
         fg_p0_latch <= {fg_p0_latch[6:0], 1'b0};

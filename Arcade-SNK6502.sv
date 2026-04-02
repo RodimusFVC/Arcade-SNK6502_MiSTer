@@ -220,8 +220,8 @@ localparam CONF_STR = {
 	"P1OQ,Dim video after 10s,On,Off;",
 	"-;",
 	"R0,Reset;",
-	"J1,Fire Left,Fire Right,Fire Up,Fire Down,Start 1P,Start 2P,Coin,Pause;",
-	"Jn,A,B,X,Y,Start,Select,R,L;",
+	"J1,Fire Down,Fire Right,Fire Left,Fire Up,Coin,Start 1P,Start 2P,Pause;",
+	"Jn,A,B,X,Y,Start,Select,L,R;",
 	"V,v",`BUILD_DATE
 };
 
@@ -312,23 +312,23 @@ wire m_down2  = joystick_1[2];
 wire m_left2  = joystick_1[1];
 wire m_right2 = joystick_1[0];
 
-// Buttons: mapped per Vanguard layout (4 fire directions)
-wire m_fire_left1  = joystick_0[4];
+// Buttons: J1: A=FireDown, B=FireRight, X=FireLeft, Y=FireUp, Start=Coin, Select=Start1P, R=Start2P, L=Pause
+wire m_fire_down1  = joystick_0[4];
 wire m_fire_right1 = joystick_0[5];
-wire m_fire_up1    = joystick_0[6];
-wire m_fire_down1  = joystick_0[7];
+wire m_fire_left1  = joystick_0[6];
+wire m_fire_up1    = joystick_0[7];
 
-wire m_fire_left2  = joystick_1[4];
+wire m_fire_down2  = joystick_1[4];
 wire m_fire_right2 = joystick_1[5];
-wire m_fire_up2    = joystick_1[6];
-wire m_fire_down2  = joystick_1[7];
+wire m_fire_left2  = joystick_1[6];
+wire m_fire_up2    = joystick_1[7];
 
-wire m_start1 = joystick_0[8];
-wire m_start2 = joystick_0[9];
 wire m_coin1  = joystick_0[10];
+wire m_start1 = joystick_0[11];
+wire m_start2 = joystick_0[9];
 wire m_coin2  = joystick_1[10];
 
-wire m_pause  = joystick_0[11];
+wire m_pause  = joystick_0[8];
 
 // Build SNK6502 input ports
 // IN0: player 1 (active high per MAME)

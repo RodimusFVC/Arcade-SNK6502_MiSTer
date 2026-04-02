@@ -265,14 +265,16 @@ wire charram_cs = (cpu_addr[15:12] == 4'b0001);
 wire [7:0] charram_cpu_dout;
 wire charram_wr = charram_cs & ~cpu_rw_n;
 
-wire [11:0] charram_vid_addr;
-wire [7:0]  charram_vid_dout;
+// Charram split into two 2KB planes for simultaneous video read
+// Plane 0: $1000-$17FF (addr bit 11 = 0), Plane 1: $1800-$1FFF (addr bit 11 = 1)
+wire [10:0] charram_vid_addr = {fg_tile_code, tile_line};
+wire [7:0]  charram_p0_dout, charram_p1_dout;
 
-dpram #(.address_width(12)) char_ram(
+dpram #(.address_width(11)) char_ram_p0(
     .clock_a  (clk_master),
     .enable_a (cpu_clken),
-    .wren_a   (charram_wr),
-    .address_a(cpu_addr[11:0]),
+    .wren_a   (charram_wr & ~cpu_addr[11]),
+    .address_a(cpu_addr[10:0]),
     .data_a   (cpu_dout),
     .q_a      (charram_cpu_dout),
 
@@ -281,7 +283,23 @@ dpram #(.address_width(12)) char_ram(
     .wren_b   (1'b0),
     .address_b(charram_vid_addr),
     .data_b   (8'd0),
-    .q_b      (charram_vid_dout)
+    .q_b      (charram_p0_dout)
+);
+
+dpram #(.address_width(11)) char_ram_p1(
+    .clock_a  (clk_master),
+    .enable_a (cpu_clken),
+    .wren_a   (charram_wr & cpu_addr[11]),
+    .address_a(cpu_addr[10:0]),
+    .data_a   (cpu_dout),
+    .q_a      (),
+
+    .clock_b  (clk_master),
+    .enable_b (1'b1),
+    .wren_b   (1'b0),
+    .address_b(charram_vid_addr),
+    .data_b   (8'd0),
+    .q_b      (charram_p1_dout)
 );
 
 // GFX ROM - always split at 4KB boundary in download space
@@ -581,29 +599,21 @@ reg [7:0] bg_p0_latch, bg_p1_latch;
 reg [7:0] fg_p0_latch, fg_p1_latch;
 reg [2:0] bg_color_latch, fg_color_latch;
 
-reg charram_plane_sel;
-reg [7:0] fg_p0_raw, fg_p1_raw;
-
+reg charram_plane_sel; // unused, kept for compatibility
 always @(posedge clk_master or posedge reset)
-    if (reset)
-        charram_plane_sel <= 1'b0;
-    else if (crtc_clken)
-        charram_plane_sel <= ~charram_plane_sel;
+    if (reset) charram_plane_sel <= 1'b0;
+    else if (crtc_clken) charram_plane_sel <= ~charram_plane_sel;
 
-assign charram_vid_addr = {charram_plane_sel, fg_tile_code, tile_line};
+// FG pixel data latched directly from both planes simultaneously
+wire [7:0] fg_p0_raw = charram_p0_dout;
+wire [7:0] fg_p1_raw = charram_p1_dout;
 
-always @(posedge clk_master)
-    if (charram_plane_sel)
-        fg_p0_raw <= charram_vid_dout;
-    else
-        fg_p1_raw <= charram_vid_dout;
-
-// Latch tile data one clock after crtc_clken (dpram needs 1 cycle to respond to new MA)
+// Latch tile data on crtc_clken (address is stable, dpram responds next cycle)
 reg crtc_clken_d;
 always @(posedge clk_master) crtc_clken_d <= crtc_clken;
 
 always @(posedge clk_master) begin
-    if (crtc_clken_d) begin
+    if (crtc_clken) begin
         bg_p0_latch    <= bg_p0_dout;
         bg_p1_latch    <= bg_p1_dout;
         fg_p0_latch    <= fg_p0_raw;

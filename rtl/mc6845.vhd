@@ -191,17 +191,17 @@ begin
 	begin
 	if nRESET = '0' then
 			addr_reg <= (others => '0');
-			r00_h_total            <= to_unsigned(44, 8);
-			r01_h_displayed        <= to_unsigned(32, 8);
-			r02_h_sync_pos         <= to_unsigned(35, 8);
-			r03_v_sync_width       <= to_unsigned(2,  4);
-			r03_h_sync_width       <= to_unsigned(4,  4);
-			r04_v_total            <= to_unsigned(31, 7);
+			r00_h_total            <= (others => '0');
+			r01_h_displayed        <= (others => '0');
+			r02_h_sync_pos         <= (others => '0');
+			r03_v_sync_width       <= (others => '0');
+			r03_h_sync_width       <= (others => '0');
+			r04_v_total            <= (others => '0');
 			r05_v_total_adj        <= (others => '0');
-			r06_v_displayed        <= to_unsigned(28, 7);
-			r07_v_sync_pos         <= to_unsigned(29, 7);
+			r06_v_displayed        <= (others => '0');
+			r07_v_sync_pos         <= (others => '0');
 			r08_interlace          <= (others => '0');
-			r09_max_scan_line_addr <= to_unsigned(7,  5);
+			r09_max_scan_line_addr <= (others => '0');
 			r10_cursor_mode        <= (others => '0');
 			r10_cursor_start       <= (others => '0');
 			r11_cursor_end         <= (others => '0');

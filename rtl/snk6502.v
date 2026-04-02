@@ -411,8 +411,13 @@ wire [4:0] tile_row  = crtc_ma[9:5];
 wire [2:0] tile_line = crtc_ra[2:0];
 wire [9:0] tile_addr = crtc_ma[9:0];
 
+// BG layer: apply scroll registers
+wire [4:0] bg_col = tile_col + scroll_x[7:3];
+wire [4:0] bg_row = tile_row + scroll_y[7:3];
+wire [9:0] bg_tile_addr = {bg_row, bg_col};
+
 assign vram2_vid_addr    = tile_addr;
-assign vram1_vid_addr    = tile_addr;
+assign vram1_vid_addr    = bg_tile_addr;
 assign colorram_vid_addr = tile_addr;
 
 // ============================================================
@@ -608,7 +613,7 @@ always @(posedge clk_master or posedge reset)
 wire [7:0] fg_p0_raw = charram_p0_dout;
 wire [7:0] fg_p1_raw = charram_p1_dout;
 
-// Latch tile data on crtc_clken (address is stable, dpram responds next cycle)
+// Latch tile data one clock after crtc_clken (dpram needs 1 cycle to respond to new MA)
 reg crtc_clken_d;
 always @(posedge clk_master) crtc_clken_d <= crtc_clken;
 
@@ -747,12 +752,12 @@ always @(posedge clk_master or posedge reset)
         crtc_ever_hit <= 1'b1;
 assign dbg_crtc_hit = crtc_ever_hit;
 
-// Latch: has the CPU ever accessed an address in the $2000-$2FFF range?
+// Latch: has the CPU ever written to colorram ($0C00-$0FFF)?
 reg cpu_touched_2xxx;
 always @(posedge clk_master or posedge reset)
     if (reset)
         cpu_touched_2xxx <= 1'b0;
-    else if (cpu_clken & (cpu_addr[15:12] == 4'h2))
+    else if (cpu_clken & colorram_cs & ~cpu_rw_n)
         cpu_touched_2xxx <= 1'b1;
 assign dbg_cpu_active = cpu_touched_2xxx;
 

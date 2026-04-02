@@ -221,7 +221,7 @@ localparam CONF_STR = {
 	"-;",
 	"R0,Reset;",
 	"J1,Fire Down,Fire Right,Fire Left,Fire Up,Coin,Start 1P,Start 2P,Pause;",
-	"Jn,A,B,X,Y,Start,Select,L,R;",
+	"Jn,A,B,X,Y,Start,Select,R,L;",
 	"V,v",`BUILD_DATE
 };
 
@@ -323,12 +323,12 @@ wire m_fire_right2 = joystick_1[5];
 wire m_fire_left2  = joystick_1[6];
 wire m_fire_up2    = joystick_1[7];
 
-wire m_coin1  = joystick_0[10];
-wire m_start1 = joystick_0[11];
-wire m_start2 = joystick_0[9];
-wire m_coin2  = joystick_1[10];
+wire m_coin1  = joystick_0[8];
+wire m_start1 = joystick_0[9];
+wire m_start2 = joystick_0[10];
+wire m_coin2  = joystick_1[8];
 
-wire m_pause  = joystick_0[8];
+wire m_pause  = joystick_0[11];
 
 // Build SNK6502 input ports
 // IN0: player 1 (active high per MAME)

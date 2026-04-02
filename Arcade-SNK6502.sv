@@ -221,7 +221,7 @@ localparam CONF_STR = {
 	"-;",
 	"R0,Reset;",
 	"J1,Fire Down,Fire Right,Fire Left,Fire Up,Coin,Start 1P,Start 2P,Pause;",
-	"Jn,A,B,X,Y,Start,Select,R,L;",
+	"jn,B,A,X,Y,Select,Start,R,L;",
 	"V,v",`BUILD_DATE
 };
 
@@ -312,7 +312,7 @@ wire m_down2  = joystick_1[2];
 wire m_left2  = joystick_1[1];
 wire m_right2 = joystick_1[0];
 
-// Buttons: J1: A=FireDown, B=FireRight, X=FireLeft, Y=FireUp, Start=Coin, Select=Start1P, R=Start2P, L=Pause
+// Buttons: jn: B=FireDown(4), A=FireRight(5), X=FireLeft(6), Y=FireUp(7), Select=Coin(8), Start=Start1P(9), R=Start2P(10), L=Pause(11)
 wire m_fire_down1  = joystick_0[4];
 wire m_fire_right1 = joystick_0[5];
 wire m_fire_left1  = joystick_0[6];

@@ -1,0 +1,22 @@
+{
+	"system" : {
+		"platform" : "linux64",
+		"os_name" : "\\S{PRETTY_NAME} \\r",
+		"os_version" : ""
+	},
+	"error" : {
+		"executable" : "quartus_sta",
+		"comment" : "not_applicable",
+		"error_message" : "Segment Violation at 0x7f2da539ae68",
+		"source_file" : "unknown",
+		"line" : "0",
+		"stack_trace" : "\t0x7f2509b57758: tsm_tis + 0x157758 (_ZN20TIS_KEY_TO_DELAY_MAP5eraseEv + 0x68)\n\t0x7f2509b578d2: tsm_tis + 0x1578d2 (_ZN20TIS_KEY_TO_DELAY_MAPD1Ev + 0x12)\n\t0x7f2509b59010: tsm_tis + 0x159010 (_ZN13TIS_DELAY_MAP5clearEv + 0x30)\n\t0x7f2509b52119: tsm_tis + 0x152119 (_ZN16TIS_MANAGER_IMPLD1Ev + 0xa9)\n\t0x7f2509b4ecee: tsm_tis + 0x14ecee (_ZN11TIS_MANAGERD1Ev + 0x8e)\n\t0x7f2509b0a813: tsm_tis + 0x10a813 (_ZN19TIS_DB_MANAGER_IMPL31delete_timing_manager_in_memoryE17dat_timing_models + 0x73)\n\t0x7f250d62efb1: tsm_tapi + 0x2efb1 (_ZN20TAPI_DB_MANAGER_IMPL31delete_timing_manager_in_memoryE17dat_timing_models + 0xbb)\n\t0x7f250d62ef2c: tsm_tapi + 0x2ef2c (_ZN20TAPI_DB_MANAGER_IMPL31delete_timing_manager_in_memoryE17dat_timing_models + 0x36)\n\t0x7f250e6f7be0: tsm_sta + 0xf7be0 (sta_delete_timing_netlist + 0x1e3)\n\t0x7f24ce04d671: tcl8.6 + 0x4d671 (TclInvokeStringCommand + 0x81)\n\t0x7f24ce051ec7: tcl8.6 + 0x51ec7 (TclNRRunCallbacks + 0x47)\n\t0x7f24ce0536e7: tcl8.6 + 0x536e7 (TclEvalEx + 0x947)\n\t0x7f24ce0fb366: tcl8.6 + 0xfb366 (Tcl_FSEvalFileEx + 0x266)\n\t0x7f24ce0fb47e: tcl8.6 + 0xfb47e (Tcl_EvalFile + 0x2e)\n\t0x7f2503811ebc: comp_qexe + 0x11ebc (_Z24qexe_evaluate_tcl_scriptRKSs + 0x382)\n\t0x7f2503818dcf: comp_qexe + 0x18dcf (_ZL11qexe_do_tclP14QEXE_FRAMEWORKRKSsS2_RKSt4listISsSaISsEEbb + 0x597)\n\t0x7f2503819d7b: comp_qexe + 0x19d7b (_Z19qexe_run_tcl_optionP14QEXE_FRAMEWORKPKcPSt4listISsSaISsEEb + 0x57e)\n\t0x7f250443e06a: comp_qcu + 0x3e06a (_Z18qcu_run_tcl_optionP13QCU_FRAMEWORKPKcPSt4listISsSaISsEEb + 0x1065)\n\t0x7f250381c586: comp_qexe + 0x1c586 (_Z18qexe_standard_mainP14QEXE_FRAMEWORKPPK22QEXE_OPTION_DEFINITIONiPPKc + 0x6b3)\n\t   0x41404a: quartus_sta + 0x1404a (_Z9qsta_mainiPPKc + 0xaa)\n\t0x7f24d6e40720: ccl_msg + 0x40720 (_Z15msg_main_threadPv + 0x10)\n\t0x7f24d200602c: ccl_thr + 0x602c (thr_final_wrapper + 0xc)\n\t0x7f24d6e407df: ccl_msg + 0x407df (_Z18msg_thread_wrapperPFPvS_ES_ + 0x62)\n\t0x7f24d2c0a559: ccl_mem + 0xa559 (_Z18mem_thread_wrapperPFPvS_ES_ + 0x99)\n\t0x7f24d2808f92: ccl_err + 0x8f92 (_Z18err_thread_wrapperPFPvS_ES_ + 0x27)\n\t0x7f24d20063f2: ccl_thr + 0x63f2 (thr_thread_wrapper + 0x15)\n\t0x7f24d6e427e2: ccl_msg + 0x427e2 (_Z12msg_exe_mainiPPKcPFiiS1_E + 0xa3)\n\t0x7f25086366c1: c.so.6 + 0x276c1\n\t0x7f25086367f9: c.so.6 + 0x277f9 (__libc_start_main + 0x89)\n\t   0x4088f5: quartus_sta + 0x88f5\n",
+		"subsystem" : "unknown"
+	},
+	"quartus" : {
+		"quartus_bits" : "64",
+		"version" : "17.0.0",
+		"build" : "595",
+		"edition" : "Lite Edition"
+	}
+}

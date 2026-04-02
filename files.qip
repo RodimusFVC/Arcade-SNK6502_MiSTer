@@ -1,0 +1,7 @@
+set_global_assignment -name QIP_FILE rtl/T65/t65.qip
+set_global_assignment -name VHDL_FILE rtl/mc6845.vhd
+set_global_assignment -name VERILOG_FILE rtl/snk6502.v
+set_global_assignment -name VERILOG_FILE rtl/dpram.v
+set_global_assignment -name VERILOG_FILE rtl/spram.v
+set_global_assignment -name VERILOG_FILE rtl/pause.v
+set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-SNK6502.sv"

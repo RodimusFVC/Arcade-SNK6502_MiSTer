@@ -197,7 +197,7 @@ assign AUDIO_MIX = '0;
 assign LED_DISK = '0;
 assign LED_POWER = '0;
 // DIAGNOSTIC: LED_USER blinks if game_id==5. Steady on if CRTC was written.
-assign LED_USER = dbg_crtc_hit ? 1'b1 : dbg_game_id[0]; // game_id 5 has bit 0 set
+assign LED_USER = dbg_crtc_hit ? 1'b1 : dbg_cpu_active;
 assign BUTTONS = '0;
 
 wire [1:0] ar = status[20:19];
@@ -388,6 +388,7 @@ wire        dbg_cpu_active;
 
 snk6502 game_core(
 	.clk_master (clk_master),
+	.clk_sys    (clk_sys),
 	.reset      (reset),
 	.pause      (pause_cpu),
 

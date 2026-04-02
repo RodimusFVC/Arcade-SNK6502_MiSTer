@@ -9,6 +9,7 @@
 
 module snk6502(
     input         clk_master,     // 11.289 MHz master clock
+    input         clk_sys,        // ~45 MHz system clock (for ROM download)
     input         reset,
     input         pause,
     output        ce_pix,
@@ -148,7 +149,7 @@ T65 cpu(
 wire [7:0] rom_dout;
 
 dpram #(.address_width(16)) prog_rom(
-    .clock_a  (clk_master),
+    .clock_a  (clk_sys),
     .enable_a (1'b1),
     .wren_a   (dn_wr & dn_maincpu),
     .address_a(dn_addr[15:0]),
@@ -168,11 +169,11 @@ dpram #(.address_width(16)) prog_rom(
 // ---------------------------------------------------------------------------
 wire ram_cs = (cpu_addr[15:10] == 6'b000000);
 wire [7:0] ram_dout;
-wire ram_wr = ram_cs & ~cpu_rw_n;
+wire ram_wr = ram_cs & ~cpu_rw_n & cpu_clken;
 
 spram #(.address_width(10)) work_ram(
     .clock  (clk_master),
-    .enable (cpu_clken & ram_cs),
+    .enable (ram_cs),
     .wren   (ram_wr),
     .address(cpu_addr[9:0]),
     .data   (cpu_dout),
@@ -292,7 +293,7 @@ wire [11:0] bg_pixel_addr = {bg_tile_code[8:0], tile_line};
 wire [7:0] bg_p0_dout, bg_p1_dout;
 
 dpram #(.address_width(12)) gfx_p0(
-    .clock_a  (clk_master),
+    .clock_a  (clk_sys),
     .enable_a (1'b1),
     .wren_a   (dn_wr & dn_gfx_p0),
     .address_a(dn_addr[11:0]),
@@ -307,7 +308,7 @@ dpram #(.address_width(12)) gfx_p0(
 );
 
 dpram #(.address_width(12)) gfx_p1(
-    .clock_a  (clk_master),
+    .clock_a  (clk_sys),
     .enable_a (1'b1),
     .wren_a   (dn_wr & dn_gfx_p1),
     .address_a(dn_addr[11:0]),
@@ -328,7 +329,7 @@ wire [7:0] prom_dout;
 wire [5:0] prom_addr;
 
 dpram #(.address_width(6)) color_proms(
-    .clock_a  (clk_master),
+    .clock_a  (clk_sys),
     .enable_a (1'b1),
     .wren_a   (dn_wr & dn_proms),
     .address_a(dn_addr[5:0]),
@@ -693,10 +694,9 @@ assign vblank = crtc_vblank;
 // ---------------------------------------------------------------------------
 // RGB pixel output
 // ---------------------------------------------------------------------------
-// DEBUG: show raw GFX ROM bitplane data
-assign rgb_r = display_active ? bg_p0_latch : 8'd0;
-assign rgb_g = display_active ? bg_p1_latch : 8'd0;
-assign rgb_b = display_active ? fg_p0_latch : 8'd0;
+assign rgb_r = display_active ? {prom_dout[2:0], prom_dout[2:0], prom_dout[1:0]} : 8'd0;
+assign rgb_g = display_active ? {prom_dout[5:3], prom_dout[5:3], prom_dout[4:3]} : 8'd0;
+assign rgb_b = display_active ? {prom_dout[7:6], prom_dout[7:6], prom_dout[7:6], prom_dout[7:6]} : 8'd0;
 
 // ---------------------------------------------------------------------------
 // NMI from coin insertion

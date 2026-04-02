@@ -49,24 +49,18 @@ module dpram #(
 	end
 
 	always @(posedge clock_a) begin
-		if(enable_a)
-		begin
-			q_a <= mem[address_a];
-			if(wren_a) begin
-				q_a <= data_a;
+		if(enable_a) begin
+			if(wren_a)
 				mem[address_a] <= data_a;
-			end
+			q_a <= mem[address_a];
 		end
 	end
 
 	always @(posedge clock_b) begin
-		if(enable_b)
-		begin
-			q_b <= mem[address_b];
-			if(wren_b) begin
-				q_b <= data_b;
+		if(enable_b) begin
+			if(wren_b)
 				mem[address_b] <= data_b;
-			end
+			q_b <= mem[address_b];
 		end
 	end
 

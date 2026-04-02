@@ -434,7 +434,7 @@ wire vs = core_vs;
 // ce_pix comes directly from game core, locked to clk_master/2
 
 wire no_rotate = status[2] | direct_video;
-wire rotate_ccw = 1;
+wire rotate_ccw = 0;
 wire flip = status[11];
 
 screen_rotate screen_rotate (.*);

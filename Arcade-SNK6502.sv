@@ -220,8 +220,8 @@ localparam CONF_STR = {
 	"P1OQ,Dim video after 10s,On,Off;",
 	"-;",
 	"R0,Reset;",
-	"J1,Fire Down,Fire Right,Fire Left,Fire Up,Coin,Start 1P,Start 2P,Pause;",
-	"jn,B,A,X,Y,Select,Start,R,L;",
+	"J1,Coin,Start 1P,Start 2P,Pause;",
+	"jn,Select,Start,R,L;",
 	"V,v",`BUILD_DATE
 };
 
@@ -313,22 +313,22 @@ wire m_left2  = joystick_1[1];
 wire m_right2 = joystick_1[0];
 
 // Buttons: jn: B=FireDown(4), A=FireRight(5), X=FireLeft(6), Y=FireUp(7), Select=Coin(8), Start=Start1P(9), R=Start2P(10), L=Pause(11)
-wire m_fire_down1  = joystick_0[4];
-wire m_fire_right1 = joystick_0[5];
-wire m_fire_left1  = joystick_0[6];
-wire m_fire_up1    = joystick_0[7];
+wire m_fire_down1  = 1'b0;
+wire m_fire_right1 = 1'b0;
+wire m_fire_left1  = 1'b0;
+wire m_fire_up1    = 1'b0;
 
-wire m_fire_down2  = joystick_1[4];
-wire m_fire_right2 = joystick_1[5];
-wire m_fire_left2  = joystick_1[6];
-wire m_fire_up2    = joystick_1[7];
+wire m_fire_down2  = 1'b0;
+wire m_fire_right2 = 1'b0;
+wire m_fire_left2  = 1'b0;
+wire m_fire_up2    = 1'b0;
 
-wire m_coin1  = joystick_0[8];
-wire m_start1 = joystick_0[9];
-wire m_start2 = joystick_0[10];
-wire m_coin2  = joystick_1[8];
+wire m_coin1  = joystick_0[5];
+wire m_start1 = joystick_0[4];
+wire m_start2 = joystick_0[6];
+wire m_coin2  = 1'b0;
 
-wire m_pause  = joystick_0[11];
+wire m_pause  = joystick_0[8];
 
 // Build SNK6502 input ports
 // IN0: player 1 (active high per MAME)

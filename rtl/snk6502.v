@@ -185,7 +185,8 @@ spram #(.address_width(10)) work_ram(
 // ---------------------------------------------------------------------------
 wire vram2_cs = (cpu_addr[15:10] == 6'b000001);
 wire [7:0] vram2_cpu_dout;
-wire vram2_wr = vram2_cs & ~cpu_rw_n;
+//wire vram2_wr = vram2_cs & ~cpu_rw_n;
+wire vram2_wr = vram2_cs & ~cpu_rw_n & cpu_clken;
 
 wire [9:0] vram2_vid_addr;
 wire [7:0] vram2_vid_dout;
@@ -211,7 +212,8 @@ dpram #(.address_width(10)) vram2(
 // ---------------------------------------------------------------------------
 wire vram1_cs = (cpu_addr[15:10] == 6'b000010);
 wire [7:0] vram1_cpu_dout;
-wire vram1_wr = vram1_cs & ~cpu_rw_n;
+//wire vram1_wr = vram1_cs & ~cpu_rw_n;
+wire vram1_wr = vram1_cs & ~cpu_rw_n & cpu_clken;
 
 wire [9:0] vram1_vid_addr;
 wire [7:0] vram1_vid_dout;
@@ -237,7 +239,8 @@ dpram #(.address_width(10)) vram1(
 // ---------------------------------------------------------------------------
 wire colorram_cs = (cpu_addr[15:10] == 6'b000011);
 wire [7:0] colorram_cpu_dout;
-wire colorram_wr = colorram_cs & ~cpu_rw_n;
+// wire colorram_wr = colorram_cs & ~cpu_rw_n;
+wire colorram_wr = colorram_cs & ~cpu_rw_n & cpu_clken;
 
 wire [9:0] colorram_vid_addr;
 wire [7:0] colorram_vid_dout;
@@ -263,7 +266,8 @@ dpram #(.address_width(10)) color_ram_inst(
 // ---------------------------------------------------------------------------
 wire charram_cs = (cpu_addr[15:12] == 4'b0001);
 wire [7:0] charram_cpu_dout;
-wire charram_wr = charram_cs & ~cpu_rw_n;
+// wire charram_wr = charram_cs & ~cpu_rw_n;
+wire charram_wr = charram_cs & ~cpu_rw_n & cpu_clken;
 
 // Charram split into two 2KB planes for simultaneous video read
 // Plane 0: $1000-$17FF (addr bit 11 = 0), Plane 1: $1800-$1FFF (addr bit 11 = 1)
@@ -587,7 +591,7 @@ always @(posedge clk_master or posedge reset)
         pix_cnt <= pix_cnt + 3'd1;
 
 // ce_pix: one pulse per pixel = master clock / 2
-assign ce_pix = clk_div[0];
+assign ce_pix = (clk_div[0] == 1'b1) && (clk_div != 4'd15);
 
 wire [8:0] bg_tile_code = {charbank, vram1_vid_dout};
 

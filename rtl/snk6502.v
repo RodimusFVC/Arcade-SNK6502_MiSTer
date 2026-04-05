@@ -193,7 +193,7 @@ wire [7:0] vram2_vid_dout;
 
 dpram #(.address_width(10)) vram2(
     .clock_a  (clk_master),
-    .enable_a (cpu_clken),
+    .enable_a (1'b1),
     .wren_a   (vram2_wr),
     .address_a(cpu_addr[9:0]),
     .data_a   (cpu_dout),
@@ -220,7 +220,7 @@ wire [7:0] vram1_vid_dout;
 
 dpram #(.address_width(10)) vram1(
     .clock_a  (clk_master),
-    .enable_a (cpu_clken),
+    .enable_a (1'b1),
     .wren_a   (vram1_wr),
     .address_a(cpu_addr[9:0]),
     .data_a   (cpu_dout),
@@ -247,7 +247,7 @@ wire [7:0] colorram_vid_dout;
 
 dpram #(.address_width(10)) color_ram_inst(
     .clock_a  (clk_master),
-    .enable_a (cpu_clken),
+    .enable_a (1'b1),
     .wren_a   (colorram_wr),
     .address_a(cpu_addr[9:0]),
     .data_a   (cpu_dout),
@@ -276,7 +276,7 @@ wire [7:0]  charram_p0_dout, charram_p1_dout;
 
 dpram #(.address_width(11)) char_ram_p0(
     .clock_a  (clk_master),
-    .enable_a (cpu_clken),
+    .enable_a (1'b1),
     .wren_a   (charram_wr & ~cpu_addr[11]),
     .address_a(cpu_addr[10:0]),
     .data_a   (cpu_dout),
@@ -292,7 +292,7 @@ dpram #(.address_width(11)) char_ram_p0(
 
 dpram #(.address_width(11)) char_ram_p1(
     .clock_a  (clk_master),
-    .enable_a (cpu_clken),
+    .enable_a (1'b1),
     .wren_a   (charram_wr & cpu_addr[11]),
     .address_a(cpu_addr[10:0]),
     .data_a   (cpu_dout),

@@ -683,16 +683,6 @@ reg display_active;
 always @(posedge clk_master)
     display_active <= crtc_de & ~crtc_hblank & ~crtc_vblank;
 
-wire [7:0] red_out   = {prom_dout[2], prom_dout[1], prom_dout[0],
-                         prom_dout[2], prom_dout[1], prom_dout[0],
-                         prom_dout[2], prom_dout[1]};
-wire [7:0] green_out = {prom_dout[5], prom_dout[4], prom_dout[3],
-                         prom_dout[5], prom_dout[4], prom_dout[3],
-                         prom_dout[5], prom_dout[4]};
-wire [7:0] blue_out  = {prom_dout[7], prom_dout[6], 1'b0,
-                         prom_dout[7], prom_dout[6], 1'b0,
-                         prom_dout[7], prom_dout[6]};
-
 // ---------------------------------------------------------------------------
 // CPU read data mux
 // ---------------------------------------------------------------------------
@@ -745,9 +735,79 @@ always @(posedge clk_master or posedge reset)
 assign cpu_nmi_n = ~cpu_nmi;
 
 // ---------------------------------------------------------------------------
-// Remaining stub outputs
+// Sound ROM - 6KB at $12040 in download space, addressed as 0x000-0x17FF
 // ---------------------------------------------------------------------------
-assign audio = 16'd0;
+wire [12:0] snd_rom_addr;
+wire [7:0]  snd_rom_dout;
+
+dpram #(.address_width(13)) sound_rom(
+    .clock_a  (clk_sys),
+    .enable_a (1'b1),
+    .wren_a   (dn_wr & dn_sndrom),
+    .address_a(dn_addr[12:0] - 13'h040),
+    .data_a   (dn_data),
+    .q_a      (),
+
+    .clock_b  (clk_master),
+    .enable_b (1'b1),
+    .wren_b   (1'b0),
+    .address_b(snd_rom_addr),
+    .data_b   (8'd0),
+    .q_b      (snd_rom_dout)
+);
+
+// ---------------------------------------------------------------------------
+// Sound port write strobes — Fantasy/Nibbler path ($2100-$2103)
+// ---------------------------------------------------------------------------
+wire snd_wr0 = io_wr & (cpu_addr == 16'h2100);
+wire snd_wr1 = io_wr & (cpu_addr == 16'h2101);
+wire snd_wr2 = io_wr & (cpu_addr == 16'h2102);
+wire snd_wr3 = io_wr & (cpu_addr == 16'h2103);
+
+// ---------------------------------------------------------------------------
+// SNK6502 tone generator
+// ---------------------------------------------------------------------------
+wire [15:0] snd_audio;
+
+snk6502_snd sound(
+    .clk         (clk_master),
+    .reset       (reset),
+    .sound_port0 (cpu_dout),
+    .sound_port1 (cpu_dout),
+    .sound_port2 (cpu_dout),
+    .sound_port3 (cpu_dout),
+    .wr0         (snd_wr0),
+    .wr1         (snd_wr1),
+    .wr2         (snd_wr2),
+    .wr3         (snd_wr3),
+    .snd_rom_data(snd_rom_dout),
+    .snd_rom_addr(snd_rom_addr),
+    .audio_out   (snd_audio)
+);
+
+reg bomb_enable;
+always @(posedge clk_master or posedge reset)
+    if (reset)
+        bomb_enable <= 0;
+    else if (snd_wr0)
+        bomb_enable <= cpu_dout[7];
+
+wire bomb_trigger = bomb_enable;
+
+wire signed [15:0] noise_audio;
+
+snk6502_noise noise_gen(
+    .clk      (clk_master),
+    .reset    (reset),
+    .trigger  (bomb_trigger),
+    .audio_out(noise_audio)
+);
+
+// Saturating signed mix
+wire signed [16:0] audio_mix = $signed(snd_audio) + $signed(noise_audio);
+assign audio = audio_mix[16] != audio_mix[15] ?
+               (audio_mix[16] ? 16'sh8000 : 16'sh7FFF) :
+               audio_mix[15:0];
 
 // ============================================================
 // DIAGNOSTIC: game_id and CRTC write visibility

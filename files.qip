@@ -4,4 +4,6 @@ set_global_assignment -name VERILOG_FILE rtl/snk6502.v
 set_global_assignment -name VERILOG_FILE rtl/dpram.v
 set_global_assignment -name VERILOG_FILE rtl/spram.v
 set_global_assignment -name VERILOG_FILE rtl/pause.v
-set_global_assignment -name SYSTEMVERILOG_FILE "Arcade-SNK6502.sv"
+set_global_assignment -name SYSTEMVERILOG_FILE Arcade-SNK6502.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sound/snk6502_sound.sv
+set_global_assignment -name VERILOG_FILE rtl/sound/snk6502_noise.v

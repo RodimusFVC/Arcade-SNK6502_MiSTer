@@ -209,6 +209,11 @@ module snk6502_snd (
     end
 
     // Update phase_step from fresh ROM period byte (no floating point)
+    // NOTE: phase_inc_lut was computed as 2^36/(526*d), which assumes index
+    // at phase[35:32]. This implementation extracts index at phase[27:24]
+    // (cycle = 2^28), so the LUT values are 2^8 = 256x too large. Shift
+    // right by 8 at load time to land on the correct magnitude without
+    // rewriting all 256 table entries.
     always @(posedge clk) begin
         if (reset) begin
             ch_phase_step[0] <= 0;
@@ -219,7 +224,7 @@ module snk6502_snd (
                 ch_phase_step[rom_latch_sel] <= 0;
             end else begin
                 idx = 8'd255 - ch_romdata[rom_latch_sel];
-                ch_phase_step[rom_latch_sel] <= phase_inc_lut[idx];
+                ch_phase_step[rom_latch_sel] <= phase_inc_lut[idx] >> 8;
             end
         end
     end
@@ -307,6 +312,7 @@ module snk6502_snd (
             ch_base[0]   <= 11'h0000;
             ch_base[1]   <= 11'h0800;
             ch_base[2]   <= 11'h1000;          // ch2 starts at $1000 (high bits set on writes)
+            wf_wr        <= 1'b0;              // rebuild trigger must start cleared (was power-up undefined)
 
             // Channel 2 is always a square wave (MAME special case). Initialize at reset.
             // ch0/ch1 will be rebuilt on first wr2 (MAME build_waveform called later).
@@ -339,6 +345,9 @@ module snk6502_snd (
                 // fantasy offset 2 – latch waveform data (triggers rebuild state machine)
                 wf_data <= sound_port2;
                 wf_wr   <= 1'b1;
+            end else if (wf_busy) begin
+                // FSM has latched the request; clear strobe so rebuild fires once per wr2
+                wf_wr   <= 1'b0;
             end
 
             if (wr3) begin

@@ -679,9 +679,34 @@ assign prom_addr = (game_id <= GID_SATANSAT) ?
     (final_is_bg ? {1'b0, ss_bg_prom_addr} : {1'b0, ss_fg_prom_addr}) :
     (final_is_bg ? {1'b1, bg_prom_addr} : {1'b0, fg_prom_addr});
 
-reg display_active;
+// Raw DE envelope (MA-aligned, coming directly from CRTC)
+reg display_active_raw;
 always @(posedge clk_master)
-    display_active <= crtc_de & ~crtc_hblank & ~crtc_vblank;
+    display_active_raw <= crtc_de & ~crtc_hblank & ~crtc_vblank;
+
+// Pipeline delay — align DE envelope with actual pixel output.
+// Pixel path: CRTC MA -> dpram (1 cycle) -> shift-reg latch (next crtc_clken) -> ce_pix shift out.
+// ENVELOPE_DELAY must match the depth of the pixel path in ce_pix cycles.
+// Start at 14; tune +/-1 if top/bottom still off (see diagnostic table).
+localparam integer ENVELOPE_DELAY = 14;
+
+reg [ENVELOPE_DELAY-1:0] de_pipe;
+reg [ENVELOPE_DELAY-1:0] hblank_pipe;
+reg [ENVELOPE_DELAY-1:0] hsync_pipe;
+reg [ENVELOPE_DELAY-1:0] vblank_pipe;
+reg [ENVELOPE_DELAY-1:0] vsync_pipe;
+
+always @(posedge clk_master) begin
+    if (ce_pix) begin
+        de_pipe     <= {de_pipe[ENVELOPE_DELAY-2:0],     display_active_raw};
+        hblank_pipe <= {hblank_pipe[ENVELOPE_DELAY-2:0], crtc_hblank};
+        hsync_pipe  <= {hsync_pipe[ENVELOPE_DELAY-2:0],  crtc_hsync};
+        vblank_pipe <= {vblank_pipe[ENVELOPE_DELAY-2:0], crtc_vblank};
+        vsync_pipe  <= {vsync_pipe[ENVELOPE_DELAY-2:0],  crtc_vsync};
+    end
+end
+
+wire display_active = de_pipe[ENVELOPE_DELAY-1];
 
 // ---------------------------------------------------------------------------
 // CPU read data mux
@@ -702,10 +727,13 @@ assign cpu_din =
 // ---------------------------------------------------------------------------
 // Video sync/blank outputs from CRTC
 // ---------------------------------------------------------------------------
-assign hsync  = crtc_hsync;
-assign vsync  = crtc_vsync;
-assign hblank = crtc_hblank;
-assign vblank = crtc_vblank;
+// Sync/blank outputs — delayed to align with pixel pipeline.
+// Uses same ENVELOPE_DELAY as display_active above so arcade_video's
+// capture window aligns with where pixels actually arrive.
+assign hsync  = hsync_pipe[ENVELOPE_DELAY-1];
+assign vsync  = vsync_pipe[ENVELOPE_DELAY-1];
+assign hblank = hblank_pipe[ENVELOPE_DELAY-1];
+assign vblank = vblank_pipe[ENVELOPE_DELAY-1];
 
 // ---------------------------------------------------------------------------
 // RGB pixel output

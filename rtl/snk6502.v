@@ -722,7 +722,6 @@ assign cpu_din =
     vram2_cs    ? vram2_cpu_dout :
     vram1_cs    ? vram1_cpu_dout :
     colorram_cs ? colorram_cpu_dout :
-//    colorram_cs ? {2'b00, colorram_cpu_dout[5:0]} :   // IC68 is 6-bit wide; bits 7:6 read as '1' on real HW
     charram_cs  ? charram_cpu_dout :
     crtc_cs     ? crtc_dout :
     in0_cs      ? in0 :

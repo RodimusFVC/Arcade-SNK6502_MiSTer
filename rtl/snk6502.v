@@ -722,25 +722,31 @@ always @(posedge clk_master)
 // Pixel path: CRTC MA -> dpram (1 cycle) -> shift-reg latch (next crtc_clken) -> ce_pix shift out.
 // ENVELOPE_DELAY must match the depth of the pixel path in ce_pix cycles.
 // Start at 14; tune +/-1 if top/bottom still off (see diagnostic table).
-localparam integer ENVELOPE_DELAY = 14;
 
-reg [ENVELOPE_DELAY-1:0] de_pipe;
-reg [ENVELOPE_DELAY-1:0] hblank_pipe;
-reg [ENVELOPE_DELAY-1:0] hsync_pipe;
-reg [ENVELOPE_DELAY-1:0] vblank_pipe;
-reg [ENVELOPE_DELAY-1:0] vsync_pipe;
+// Pipe depth sized to max possible delay; per-game tap index picks the actual delay.
+localparam integer ENVELOPE_DELAY_MAX = 16;
+
+reg [ENVELOPE_DELAY_MAX-1:0] de_pipe;
+reg [ENVELOPE_DELAY_MAX-1:0] hblank_pipe;
+reg [ENVELOPE_DELAY_MAX-1:0] hsync_pipe;
+reg [ENVELOPE_DELAY_MAX-1:0] vblank_pipe;
+reg [ENVELOPE_DELAY_MAX-1:0] vsync_pipe;
+
+// Per-game pipe-tap index. Default = 13 (i.e. 14 stages, same as v2).
+// Vanguard starts at 0 — let the raw signals pass undelayed; tune up if needed.
+wire [3:0] env_idx = (game_id == GID_VANGUARD) ? 4'd0 : 4'd13;
 
 always @(posedge clk_master) begin
     if (ce_pix) begin
-        de_pipe     <= {de_pipe[ENVELOPE_DELAY-2:0],     display_active_raw};
-        hblank_pipe <= {hblank_pipe[ENVELOPE_DELAY-2:0], crtc_hblank};
-        hsync_pipe  <= {hsync_pipe[ENVELOPE_DELAY-2:0],  crtc_hsync};
-        vblank_pipe <= {vblank_pipe[ENVELOPE_DELAY-2:0], crtc_vblank};
-        vsync_pipe  <= {vsync_pipe[ENVELOPE_DELAY-2:0],  crtc_vsync};
+        de_pipe     <= {de_pipe[ENVELOPE_DELAY_MAX-2:0],     display_active_raw};
+        hblank_pipe <= {hblank_pipe[ENVELOPE_DELAY_MAX-2:0], crtc_hblank};
+        hsync_pipe  <= {hsync_pipe[ENVELOPE_DELAY_MAX-2:0],  crtc_hsync};
+        vblank_pipe <= {vblank_pipe[ENVELOPE_DELAY_MAX-2:0], crtc_vblank};
+        vsync_pipe  <= {vsync_pipe[ENVELOPE_DELAY_MAX-2:0],  crtc_vsync};
     end
 end
 
-wire display_active = de_pipe[ENVELOPE_DELAY-1];
+wire display_active = de_pipe[env_idx];
 
 // ---------------------------------------------------------------------------
 // CPU read data mux
@@ -765,10 +771,10 @@ assign cpu_din =
 // Sync/blank outputs — delayed to align with pixel pipeline.
 // Uses same ENVELOPE_DELAY as display_active above so arcade_video's
 // capture window aligns with where pixels actually arrive.
-assign hsync  = hsync_pipe[ENVELOPE_DELAY-1];
-assign vsync  = vsync_pipe[ENVELOPE_DELAY-1];
-assign hblank = hblank_pipe[ENVELOPE_DELAY-1];
-assign vblank = vblank_pipe[ENVELOPE_DELAY-1];
+assign hsync  = hsync_pipe[env_idx];
+assign vsync  = vsync_pipe[env_idx];
+assign hblank = hblank_pipe[env_idx];
+assign vblank = vblank_pipe[env_idx];
 
 // ---------------------------------------------------------------------------
 // RGB pixel output

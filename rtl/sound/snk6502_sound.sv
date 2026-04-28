@@ -11,7 +11,11 @@ module snk6502_snd (
     input  wire                 wr3,          // one-cycle write strobe for port 3 (new)
     input  wire        [7:0]    snd_rom_data, // data from external sound ROM (combinatorial or 1-cycle registered)
     output reg         [12:0]   snd_rom_addr, // address to sound ROM
-    output reg  signed [15:0]   audio_out     // 16-bit signed PCM output (sum of 3 channels)
+    output reg  signed [15:0]   audio_out,    // 16-bit signed PCM output (sum of 3 channels)
+    // MAME snk6502_a.cpp:322 — int music0_playing() { return m_tone_channels[0].mute ? 1 : 0; }
+    // Active high when ch0 is MUTED (i.e., music NOT currently playing). Game polls this
+    // at title/continue/death music boundaries to know previous music has finished.
+    output wire                 music0_playing
 );
 
     //////////////////////////////////////////////////////////////////////////
@@ -36,6 +40,10 @@ module snk6502_snd (
     reg [12:0] ch_base   [0:2];
     reg [7:0]  ch_mask   [0:2];
     reg        ch_mute   [0:2];
+
+    // Mirror ch0 mute to top-level — drives IN port custom bit on Vanguard / Sasuke / SatanSat.
+    assign music0_playing = ch_mute[0];
+    
     reg signed [15:0] ch_form [0:2][0:15];
     reg [31:0] ch_phase      [0:2];
     reg [31:0] ch_phase_step [0:2];  // pre-scaled increment per master clock (fixed-point)

@@ -197,7 +197,7 @@ assign AUDIO_MIX = '0;
 assign LED_DISK = '0;
 assign LED_POWER = '0;
 // DIAGNOSTIC: LED_USER blinks if game_id==5. Steady on if CRTC was written.
-assign LED_USER = dbg_crtc_hit ? 1'b1 : dbg_cpu_active;
+// assign LED_USER = dbg_crtc_hit ? 1'b1 : dbg_cpu_active;
 assign BUTTONS = '0;
 
 wire [1:0] ar = status[20:19];
@@ -220,8 +220,11 @@ localparam CONF_STR = {
 	"P1OQ,Dim video after 10s,On,Off;",
 	"-;",
 	"R0,Reset;",
-	"J1,Coin,Start 1P,Start 2P,Pause;",
-	"jn,Select,Start,R,L;",
+	// Button 1..4 = ABXY (SNES face-button layout: A=right, B=down, X=up, Y=left).
+	// For Vanguard, ABXY map directly onto fire-right/down/up/left.
+	// For 1-button games (Pballoon/Fantasy), all four ABXY fire.
+	"J1,Button 1,Button 2,Button 3,Button 4,Coin,Start 1P,Start 2P,Pause;",
+	"jn,A,B,X,Y,Select,Start,R,L;",
 	"V,v",`BUILD_DATE
 };
 
@@ -261,6 +264,8 @@ wire  [7:0] ioctl_dout;
 wire  [7:0] ioctl_din;
 
 wire [15:0] joystick_0, joystick_1;
+wire [15:0] joystick_r_analog_0;   // right analog stick: [15:8]=Y signed, [7:0]=X signed
+wire [10:0] ps2_key;
 
 wire [21:0] gamma_bus;
 
@@ -289,62 +294,19 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.ioctl_index(ioctl_index),
 
 	.joystick_0(joystick_0),
-	.joystick_1(joystick_1)
+	.joystick_1(joystick_1),
+	.joystick_r_analog_0(joystick_r_analog_0),
+	.ps2_key(ps2_key)
 );
 
 assign ioctl_upload_req = 1'b0;
 assign ioctl_din        = 8'd0;
 
-///////////////////   CONTROLS   ////////////////////
-
-// Joystick mapping
-// MiSTer joystick bits: 0=right, 1=left, 2=down, 3=up, 4+=buttons
-
-// Player 1 directional inputs
-wire m_up1    = joystick_0[3];
-wire m_down1  = joystick_0[2];
-wire m_left1  = joystick_0[1];
-wire m_right1 = joystick_0[0];
-
-// Player 2 directional inputs
-wire m_up2    = joystick_1[3];
-wire m_down2  = joystick_1[2];
-wire m_left2  = joystick_1[1];
-wire m_right2 = joystick_1[0];
-
-// Buttons: jn: B=FireDown(4), A=FireRight(5), X=FireLeft(6), Y=FireUp(7), Select=Coin(8), Start=Start1P(9), R=Start2P(10), L=Pause(11)
-wire m_fire_down1  = 1'b0;
-wire m_fire_right1 = 1'b0;
-wire m_fire_left1  = 1'b0;
-wire m_fire_up1    = 1'b0;
-
-wire m_fire_down2  = 1'b0;
-wire m_fire_right2 = 1'b0;
-wire m_fire_left2  = 1'b0;
-wire m_fire_up2    = 1'b0;
-
-wire m_coin1  = joystick_0[5];
-wire m_start1 = joystick_0[4];
-wire m_start2 = joystick_0[6];
-wire m_coin2  = 1'b0;
-
-wire m_pause  = joystick_0[8];
-
-// Build SNK6502 input ports
-// IN0: player 1 (active high per MAME)
-// Vanguard: bits 7:4 = joystick L/R/U/D, bits 3:0 = fire D/U/R/L
-wire [7:0] snk_in0 = {m_left1, m_right1, m_up1, m_down1,
-                       m_fire_down1, m_fire_up1, m_fire_right1, m_fire_left1};
-
-// IN1: player 2
-wire [7:0] snk_in1 = {m_left2, m_right2, m_up2, m_down2,
-                       m_fire_down2, m_fire_up2, m_fire_right2, m_fire_left2};
-
-// IN2: coins, starts, misc
-wire [7:0] snk_in2 = {m_start1, m_start2, 4'b0000, m_coin1, m_coin2};
-
-// DSW: from DIP switch array
-wire [7:0] snk_dsw = sw[0];
+// Game ID - loaded from .mra via ioctl_index 1
+reg [3:0] game_id;
+always @(posedge clk_sys)
+	if (ioctl_wr && ioctl_index == 8'd1 && ioctl_addr == 25'd0)
+		game_id <= ioctl_dout[3:0];
 
 // PAUSE SYSTEM
 wire        pause_cpu;
@@ -359,18 +321,208 @@ pause #(3,3,3,24) pause (
 	.b(rgb_in[8:6])
 );
 
+///////////////////   CONTROLS   ////////////////////
+
+// Game ID constants (must match rtl/snk6502.v)
+localparam GID_SASUKE   = 4'd0;
+localparam GID_SATANSAT = 4'd1;
+localparam GID_VANGUARD = 4'd2;
+localparam GID_FANTASY  = 4'd3;
+localparam GID_PBALLOON = 4'd4;
+localparam GID_NIBBLER  = 4'd5;
+
+// ----- PS/2 Keyboard -----
+reg btn_up       = 0;
+reg btn_down     = 0;
+reg btn_left     = 0;
+reg btn_right    = 0;
+reg btn_fire1    = 0;
+reg btn_fire2    = 0;
+reg btn_fire3    = 0;
+reg btn_fire4    = 0;
+reg btn_coin1    = 0;
+reg btn_coin2    = 0;
+reg btn_1p_start = 0;
+reg btn_2p_start = 0;
+reg btn_pause    = 0;
+
+wire pressed = ~ps2_key[9];
+wire [7:0] code = ps2_key[7:0];
+always @(posedge clk_sys) begin
+	reg old_state;
+	old_state <= ps2_key[10];
+	if (old_state != ps2_key[10]) begin
+		case (code)
+			'h16: btn_1p_start <= pressed; // 1
+			'h1E: btn_2p_start <= pressed; // 2
+			'h2E: btn_coin1    <= pressed; // 5
+			'h36: btn_coin2    <= pressed; // 6
+			'h4D: btn_pause    <= pressed; // P
+			'h75: btn_up       <= pressed; // up
+			'h72: btn_down     <= pressed; // down
+			'h6B: btn_left     <= pressed; // left
+			'h74: btn_right    <= pressed; // right
+			'h14: btn_fire1    <= pressed; // L ctrl  = Button 1 (A)
+			'h12: btn_fire2    <= pressed; // L shift = Button 2 (B)
+			'h11: btn_fire3    <= pressed; // L alt   = Button 3 (X)
+			'h29: btn_fire4    <= pressed; // space   = Button 4 (Y)
+		endcase
+	end
+end
+
+// ----- Right analog stick decode (Vanguard secondary fire) -----
+// joystick_r_analog_0[7:0]  = X axis (signed), positive = right
+// joystick_r_analog_0[15:8] = Y axis (signed), positive = down
+// Threshold of ±64/127 (~half deflection) — same as Qix.
+wire signed [7:0] rstick_x = joystick_r_analog_0[7:0];
+wire signed [7:0] rstick_y = joystick_r_analog_0[15:8];
+wire r_fire_right = (rstick_x >  8'sd64);
+wire r_fire_left  = (rstick_x < -8'sd64);
+wire r_fire_down  = (rstick_y >  8'sd64);
+wire r_fire_up    = (rstick_y < -8'sd64);
+
+// ----- Sasuke / SatanSat free-running counter -----
+// MAME (snk6502.cpp): 8-bit counter += 0x10 at 1.4 MHz; sasuke_count_r() = counter >> 4.
+// Net effect: 4-bit counter at ~1.4 MHz feeding IN2[7:4]. Used by game as RNG.
+// clk_master ≈ 11.289 MHz; /8 ≈ 1.411 MHz.
+// Counter lives in clk_master domain — IN ports are sampled by CPU also in clk_master,
+// so a single-bit transition crossing the assign is benign for an RNG bit.
+reg [2:0] sasuke_div   = 3'd0;
+reg [3:0] sasuke_count = 4'd0;
+always @(posedge clk_master) begin
+	sasuke_div <= sasuke_div + 3'd1;
+	if (sasuke_div == 3'd7)
+		sasuke_count <= sasuke_count + 4'd1;
+end
+
+// ----- DPAD directions -----
+wire m_up1    = btn_up    | joystick_0[3];
+wire m_down1  = btn_down  | joystick_0[2];
+wire m_left1  = btn_left  | joystick_0[1];
+wire m_right1 = btn_right | joystick_0[0];
+
+wire m_up2    = joystick_1[3];
+wire m_down2  = joystick_1[2];
+wire m_left2  = joystick_1[1];
+wire m_right2 = joystick_1[0];
+
+// ----- Face buttons (ABXY) -----
+// jn: A=joystick[4], B=joystick[5], X=joystick[6], Y=joystick[7]
+//
+// Vanguard convention (matches each button's physical position on the pad):
+//   A = fire RIGHT
+//   B = fire DOWN
+//   X = fire UP
+//   Y = fire LEFT
+wire m_btn1_p1 = btn_fire1 | joystick_0[4];   // A
+wire m_btn2_p1 = btn_fire2 | joystick_0[5];   // B
+wire m_btn3_p1 = btn_fire3 | joystick_0[6];   // X
+wire m_btn4_p1 = btn_fire4 | joystick_0[7];   // Y
+
+wire m_btn1_p2 = joystick_1[4];
+wire m_btn2_p2 = joystick_1[5];
+wire m_btn3_p2 = joystick_1[6];
+wire m_btn4_p2 = joystick_1[7];
+
+// Vanguard fire bits = ABXY OR'd with right analog stick
+wire m_fire_right_p1 = m_btn1_p1 | r_fire_right;  // A   or stick right
+wire m_fire_down_p1  = m_btn2_p1 | r_fire_down;   // B   or stick down
+wire m_fire_up_p1    = m_btn3_p1 | r_fire_up;     // X   or stick up
+wire m_fire_left_p1  = m_btn4_p1 | r_fire_left;   // Y   or stick left
+
+wire m_fire_right_p2 = m_btn1_p2;
+wire m_fire_down_p2  = m_btn2_p2;
+wire m_fire_up_p2    = m_btn3_p2;
+wire m_fire_left_p2  = m_btn4_p2;
+
+// ----- Coin / Start / Pause -----
+wire m_coin1  = btn_coin1    | joystick_0[8];   // Select = Coin
+wire m_coin2  = btn_coin2    | joystick_1[8];
+wire m_start1 = btn_1p_start | joystick_0[9];   // Start  = Start 1P
+wire m_start2 = btn_2p_start | joystick_1[9];   // R      = Start 2P
+wire m_pause  = btn_pause    | joystick_0[11];  // L      = Pause
+
+// =========================================================================
+// Per-game IN0 / IN1 / IN2 construction (active high — matches MAME)
+// Bit ordering reminder: {b7, b6, b5, b4, b3, b2, b1, b0}
+// =========================================================================
+
+// --- Sasuke (game_id=0) ---
+//  IN0 b7=START2 b6=START1 b5..3=cocktail b2=BTN1 b1=R(2W) b0=L(2W)
+//  IN1 b7=music0_playing(NI) b1..0=unused
+//  IN2 b7..4=sasuke_count_r(NI) b3..1=NC b0=COIN1
+wire [7:0] in0_sasuke   = {m_start2, m_start1, 3'b000, m_btn1_p1, m_right1, m_left1};
+wire [7:0] in1_sasuke   = {music0_playing, 7'b0000000};
+wire [7:0] in2_sasuke   = {sasuke_count, 3'b000, m_coin1};
+
+// --- SatanSat / Zarzon (game_id=1) ---
+//  IN0 b7=BTN2_cock b6=BTN2 b5..3=cocktail b2=BTN1 b1=R(2W) b0=L(2W)
+//  IN1 b7=music0_playing(NI) b6..2=NC b1=START2 b0=START1
+//  IN2 b7..4=sasuke_count_r(NI) b3..1=NC b0=COIN1
+wire [7:0] in0_satansat = {1'b0, m_btn2_p1, 3'b000, m_btn1_p1, m_right1, m_left1};
+wire [7:0] in1_satansat = {music0_playing, 5'b00000, m_start2, m_start1};
+wire [7:0] in2_satansat = {sasuke_count, 3'b000, m_coin1};
+
+// --- Vanguard (game_id=2) ---
+//  IN0 b7=L  b6=R  b5=U  b4=D  b3=BTN1(fireL) b2=BTN2(fireR) b1=BTN4(fireU) b0=BTN3(fireD)
+//  IN1 same layout for P2 cocktail
+//  IN2 b7=START1 b6=START2 b5=NC b4=music0_playing(NI) b3..2=NC b1=COIN1 b0=COIN2
+wire [7:0] in0_vanguard = {m_left1, m_right1, m_up1, m_down1,
+                           m_fire_left_p1, m_fire_right_p1, m_fire_up_p1, m_fire_down_p1};
+wire [7:0] in1_vanguard = {m_left2, m_right2, m_up2, m_down2,
+                           m_fire_left_p2, m_fire_right_p2, m_fire_up_p2, m_fire_down_p2};
+wire [7:0] in2_vanguard = {m_coin1, m_coin2, 1'b0, music0_playing, 2'b00, m_start1, m_start2};
+
+// --- Fantasy (game_id=3) ---
+//  IN0 b7=L b6=R b5=U b4=D (8W); MAME has b3..0=UNKNOWN.
+//  Real hw has a fire button — map it to b3 like pballoon (any ABXY OR'd).
+//  IN2 same as Vanguard but with b4=NC (no music0 read)
+wire [7:0] in0_fantasy  = {m_left1, m_right1, m_up1, m_down1, m_btn1_p1, 3'b000};
+wire [7:0] in1_fantasy  = {m_left2, m_right2, m_up2, m_down2, m_btn1_p2, 3'b000};
+wire [7:0] in2_fantasy  = {m_start1, m_start2, 4'b0000, m_coin1, m_coin2};
+
+// --- Pioneer Balloon (game_id=4) ---
+//  IN0 b7=L b6=R b5=U b4=D b3=BTN1 b2..0=UNKNOWN
+//  IN2 same as fantasy
+wire [7:0] in0_pballoon = {m_left1, m_right1, m_up1, m_down1, m_btn1_p1, 3'b000};
+wire [7:0] in1_pballoon = {m_left2, m_right2, m_up2, m_down2, m_btn1_p2, 3'b000};
+wire [7:0] in2_pballoon = {m_start1, m_start2, 4'b0000, m_coin1, m_coin2};
+
+// --- Nibbler (game_id=5) ---
+// Real Nibbler cabinet has NO buttons — IN0/IN1 bits 0-3 are unconnected.
+// MAME maps debug service inputs (slow-down, pause, end-game) onto those bits
+// for testing, but the ROM treats any high level on those bits as debug
+// activity. Putting any button there causes weird in-game behaviour
+// including disabling normal coin/credit handling.
+wire [7:0] in0_nibbler  = {m_left1, m_right1, m_up1, m_down1, 4'b0000};
+wire [7:0] in1_nibbler  = {m_left2, m_right2, m_up2, m_down2, 4'b0000};
+wire [7:0] in2_nibbler  = {m_coin1, m_coin2, 4'b0000, m_start1, m_start2};
+
+// --- Per-game mux ---
+reg [7:0] snk_in0, snk_in1, snk_in2;
+always @(*) begin
+	case (game_id)
+		GID_NIBBLER:  begin snk_in0 = in0_nibbler;  snk_in1 = in1_nibbler;  snk_in2 = in2_nibbler;  end
+		GID_FANTASY:  begin snk_in0 = in0_fantasy;  snk_in1 = in1_fantasy;  snk_in2 = in2_fantasy;  end
+		GID_PBALLOON: begin snk_in0 = in0_pballoon; snk_in1 = in1_pballoon; snk_in2 = in2_pballoon; end
+		GID_VANGUARD: begin snk_in0 = in0_vanguard; snk_in1 = in1_vanguard; snk_in2 = in2_vanguard; end
+		GID_SASUKE:   begin snk_in0 = in0_sasuke;   snk_in1 = in1_sasuke;   snk_in2 = in2_sasuke;   end
+		GID_SATANSAT: begin snk_in0 = in0_satansat; snk_in1 = in1_satansat; snk_in2 = in2_satansat; end
+		default:      begin snk_in0 = in0_nibbler;  snk_in1 = in1_nibbler;  snk_in2 = in2_nibbler;  end
+	endcase
+end
+
+assign LED_USER = m_coin1;
+
+// DSW: from DIP switch array
+wire [7:0] snk_dsw = sw[0];
+
 // DIPS
 reg [7:0] sw[8];
 always @(posedge clk_sys)
 begin
 	if (ioctl_wr && (ioctl_index==8'd254) && !ioctl_addr[24:3]) sw[ioctl_addr[2:0]] <= ioctl_dout;
 end
-
-// Game ID - loaded from .mra via ioctl_index 1
-reg [3:0] game_id;
-always @(posedge clk_sys)
-	if (ioctl_wr && ioctl_index == 8'd1 && ioctl_addr == 25'd0)
-		game_id <= ioctl_dout[3:0];
 
 // ROM download
 wire rom_download = ioctl_download & (ioctl_index == 8'd0);
@@ -385,6 +537,7 @@ wire        ce_pix;
 wire [3:0]  dbg_game_id;
 wire        dbg_crtc_hit;
 wire        dbg_cpu_active;
+wire        music0_playing;   // MAME custom bit — high when sound ch0 is muted
 
 snk6502 game_core(
 	.clk_master (clk_master),
@@ -415,9 +568,7 @@ snk6502 game_core(
 	.flip_screen(core_flip),
 	.ce_pix     (ce_pix),
 
-	.dbg_game_id  (dbg_game_id),
-	.dbg_crtc_hit (dbg_crtc_hit),
-	.dbg_cpu_active(dbg_cpu_active)
+	.music0_playing(music0_playing)
 );
 
 // DISPLAY

@@ -17,11 +17,6 @@ module snk6502(
     // Game configuration (selects memory map / I/O layout)
     input  [3:0]  game_id,        // which game variant (see defines below)
 
-    // DEBUG outputs (active accent on accent removal)
-    output [3:0]  dbg_game_id,
-    output        dbg_crtc_hit,
-    output        dbg_cpu_active,
-
     // Player inputs
     input  [7:0]  in0,            // IN0 port
     input  [7:0]  in1,            // IN1 port
@@ -46,7 +41,11 @@ module snk6502(
     output [15:0] audio,
 
     // Screen flip output
-    output        flip_screen
+    output        flip_screen,
+
+    // Sound channel 0 mute status (MAME music0_playing — active high when muted).
+    // Wired into IN port custom bits at top level.
+    output        music0_playing
 );
 
 // Game IDs
@@ -736,8 +735,8 @@ reg [ENVELOPE_DELAY_MAX-1:0] vsync_pipe;
 
 // Per-game pipe-tap index. Default = 13 (i.e. 14 stages, same as v2).
 // Vanguard starts at 0 — let the raw signals pass undelayed; tune up if needed.
-//wire [3:0] env_idx = (game_id == GID_VANGUARD) ? 4'd0 : 4'd13;
-wire [3:0] env_idx = 4'd13;
+wire [3:0] env_idx = (game_id == GID_SASUKE) ? 4'd10 : 4'd13;
+//wire [3:0] env_idx = 4'd13;
 
 always @(posedge clk_master) begin
     if (ce_pix) begin
@@ -786,10 +785,13 @@ assign rgb_r = display_active ? {prom_dout[2:0], prom_dout[2:0], prom_dout[1:0]}
 assign rgb_g = display_active ? {prom_dout[5:3], prom_dout[5:3], prom_dout[4:3]} : 8'd0;
 assign rgb_b = display_active ? {prom_dout[7:6], prom_dout[7:6], prom_dout[7:6], prom_dout[7:6]} : 8'd0;
 
-// ---------------------------------------------------------------------------
-// NMI from coin insertion
-// ---------------------------------------------------------------------------
 // NMI on coin insertion - edge triggered one-shot
+//
+// Matches MAME's PORT_IMPULSE(1) + coin_inserted() semantics: NMI is asserted
+// on the FALLING edge of the coin bit (i.e., when the user releases the coin
+// button, or when MAME's 1-frame impulse expires). Firing on the rising edge
+// (press) leaves the bit still high inside the NMI handler, which Nibbler's
+// handler treats as "spurious — bail out without crediting."
 reg coin_prev;
 reg cpu_nmi;
 always @(posedge clk_master or posedge reset)
@@ -798,8 +800,8 @@ always @(posedge clk_master or posedge reset)
         cpu_nmi   <= 1'b0;
     end else begin
         coin_prev <= in2[1] | in2[0];
-        // pulse NMI for one cpu_clken on rising edge of coin
-        if ((in2[1] | in2[0]) & ~coin_prev)
+        // pulse NMI for one cpu_clken on FALLING edge of coin
+        if (~(in2[1] | in2[0]) & coin_prev)
             cpu_nmi <= 1'b1;
         else if (cpu_clken)
             cpu_nmi <= 1'b0;
@@ -844,7 +846,7 @@ wire snd_wr1 = io_wr & ((cpu_addr == 16'h2101) |
 wire snd_wr2 = io_wr & ((cpu_addr == 16'h2102) |
                         (cpu_addr == 16'h3102) |
                         (cpu_addr == 16'hB102));
-wire snd_wr3 = io_wr & (cpu_addr == 16'h2103);  // Fantasy/Nibbler only
+wire snd_wr3 = io_wr &  (cpu_addr == 16'h2103);  // Fantasy/Nibbler only
 
 // ---------------------------------------------------------------------------
 // SNK6502 tone generator
@@ -852,19 +854,20 @@ wire snd_wr3 = io_wr & (cpu_addr == 16'h2103);  // Fantasy/Nibbler only
 wire [15:0] snd_audio;
 
 snk6502_snd sound(
-    .clk         (clk_master),
-    .reset       (reset),
-    .sound_port0 (cpu_dout),
-    .sound_port1 (cpu_dout),
-    .sound_port2 (cpu_dout),
-    .sound_port3 (cpu_dout),
-    .wr0         (snd_wr0),
-    .wr1         (snd_wr1),
-    .wr2         (snd_wr2),
-    .wr3         (snd_wr3),
-    .snd_rom_data(snd_rom_dout),
-    .snd_rom_addr(snd_rom_addr),
-    .audio_out   (snd_audio)
+    .clk           (clk_master),
+    .reset         (reset),
+    .sound_port0   (cpu_dout),
+    .sound_port1   (cpu_dout),
+    .sound_port2   (cpu_dout),
+    .sound_port3   (cpu_dout),
+    .wr0           (snd_wr0),
+    .wr1           (snd_wr1),
+    .wr2           (snd_wr2),
+    .wr3           (snd_wr3),
+    .snd_rom_data  (snd_rom_dout),
+    .snd_rom_addr  (snd_rom_addr),
+    .audio_out     (snd_audio),
+    .music0_playing(music0_playing)
 );
 
 reg bomb_enable;
@@ -890,28 +893,5 @@ wire signed [16:0] audio_mix = $signed(snd_audio) + $signed(noise_audio);
 assign audio = audio_mix[16] != audio_mix[15] ?
                (audio_mix[16] ? 16'sh8000 : 16'sh7FFF) :
                audio_mix[15:0];
-
-// ============================================================
-// DIAGNOSTIC: game_id and CRTC write visibility
-// ============================================================
-assign dbg_game_id = game_id;
-
-// Latch: has crtc_cs ever been asserted during a CPU write?
-reg crtc_ever_hit;
-always @(posedge clk_master or posedge reset)
-    if (reset)
-        crtc_ever_hit <= 1'b0;
-    else if (crtc_cs & ~cpu_rw_n & cpu_clken)
-        crtc_ever_hit <= 1'b1;
-assign dbg_crtc_hit = crtc_ever_hit;
-
-// Latch: has the CPU ever written to colorram ($0C00-$0FFF)?
-reg cpu_touched_2xxx;
-always @(posedge clk_master or posedge reset)
-    if (reset)
-        cpu_touched_2xxx <= 1'b0;
-    else if (cpu_clken & colorram_cs & ~cpu_rw_n)
-        cpu_touched_2xxx <= 1'b1;
-assign dbg_cpu_active = cpu_touched_2xxx;
 
 endmodule

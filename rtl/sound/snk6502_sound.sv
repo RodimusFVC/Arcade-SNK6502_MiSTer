@@ -1,6 +1,7 @@
 module snk6502_snd (
     input  wire                 clk,          // 11.289 MHz master clock
     input  wire                 reset,
+    input  wire                 pause,        // halt sound state on pause/OSD (freeze + resume, no drift)
     input  wire        [7:0]    sound_port0,  // CPU write data for port 0
     input  wire        [7:0]    sound_port1,  // CPU write data for port 1
     input  wire        [7:0]    sound_port2,  // CPU write data for port 2
@@ -183,6 +184,8 @@ module snk6502_snd (
     always @(posedge clk) begin
         if (reset) begin
             music_cnt <= 0;
+        end else if (pause) begin
+            music_cnt <= music_cnt;          // HALT: freeze the music clock on pause
         end else if (music_tick) begin
             music_cnt <= 0;
         end else begin
@@ -266,7 +269,7 @@ module snk6502_snd (
     always @(posedge clk) begin
         if (reset) begin
             ch_phase[0] <= 0; ch_phase[1] <= 0; ch_phase[2] <= 0;
-        end else begin
+        end else if (!pause) begin               // HALT: freeze waveform phase on pause
             for (i = 0; i < 3; i = i + 1) begin
                 if (!ch_mute[i]) begin
                     ch_phase[i] <= ch_phase[i] + ch_phase_step[i];
@@ -335,7 +338,7 @@ module snk6502_snd (
                 ch_form[2][j] <= j[3] ? 16'sd7 * 16'sd409 : -16'sd8 * 16'sd409;
             end
         end else begin
-            if (music_tick) begin
+            if (music_tick && !pause) begin      // HALT: freeze sequencer offset on pause
                 ch_offset[0] <= (ch_offset[0] + 1'd1) & ch_mask[0];
                 ch_offset[1] <= (ch_offset[1] + 1'd1) & ch_mask[1];
                 ch_offset[2] <= (ch_offset[2] + 1'd1) & ch_mask[2];

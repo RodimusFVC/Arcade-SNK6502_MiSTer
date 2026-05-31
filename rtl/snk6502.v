@@ -856,6 +856,7 @@ wire [15:0] snd_audio;
 snk6502_snd sound(
     .clk           (clk_master),
     .reset         (reset),
+    .pause         (pause),
     .sound_port0   (cpu_dout),
     .sound_port1   (cpu_dout),
     .sound_port2   (cpu_dout),
@@ -884,6 +885,7 @@ wire signed [15:0] noise_audio;
 snk6502_noise noise_gen(
     .clk      (clk_master),
     .reset    (reset),
+    .pause    (pause),
     .trigger  (bomb_trigger),
     .audio_out(noise_audio)
 );

@@ -605,6 +605,10 @@ arcade_video #(256,9,1) arcade_video
 );
 
 assign CLK_VIDEO = clk_vid;
+// Audio HALTS on pause/OSD: the sound generators' state-advance is gated by `pause`
+// inside the core (snk6502_snd music clock/phase/sequencer + snk6502_noise decay),
+// so they FREEZE and resume exactly where they left off — no mute, no drift.
+// See [[Pause must gate every clock domain]].
 assign AUDIO_L = core_audio;
 assign AUDIO_R = core_audio;
 assign AUDIO_S = 1'b1;

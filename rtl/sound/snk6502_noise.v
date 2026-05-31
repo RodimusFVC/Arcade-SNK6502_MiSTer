@@ -7,6 +7,7 @@
 module snk6502_noise (
     input  wire        clk,       // 11.289 MHz master clock
     input  wire        reset,
+    input  wire        pause,     // halt in-flight one-shot on pause/OSD
     input  wire        trigger,   // rising edge fires one-shot
     output reg  signed [15:0] audio_out
 );
@@ -44,7 +45,7 @@ module snk6502_noise (
             decay_cnt <= 0;
             trig_prev <= 0;
             audio_out <= 0;
-        end else begin
+        end else if (!pause) begin    // HALT: freeze the explosion decay on pause
             trig_prev <= trigger;
 
             if (trig_edge)

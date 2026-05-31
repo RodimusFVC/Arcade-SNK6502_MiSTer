@@ -471,7 +471,7 @@ wire [7:0] in0_vanguard = {m_left1, m_right1, m_up1, m_down1,
                            m_fire_left_p1, m_fire_right_p1, m_fire_up_p1, m_fire_down_p1};
 wire [7:0] in1_vanguard = {m_left2, m_right2, m_up2, m_down2,
                            m_fire_left_p2, m_fire_right_p2, m_fire_up_p2, m_fire_down_p2};
-wire [7:0] in2_vanguard = {m_coin1, m_coin2, 1'b0, music0_playing, 2'b00, m_start1, m_start2};
+wire [7:0] in2_vanguard = {m_start1, m_start2, 1'b0, music0_playing, 2'b00, m_coin1, m_coin2};
 
 // --- Fantasy (game_id=3) ---
 //  IN0 b7=L b6=R b5=U b4=D (8W); MAME has b3..0=UNKNOWN.
@@ -496,7 +496,7 @@ wire [7:0] in2_pballoon = {m_start1, m_start2, 4'b0000, m_coin1, m_coin2};
 // including disabling normal coin/credit handling.
 wire [7:0] in0_nibbler  = {m_left1, m_right1, m_up1, m_down1, 4'b0000};
 wire [7:0] in1_nibbler  = {m_left2, m_right2, m_up2, m_down2, 4'b0000};
-wire [7:0] in2_nibbler  = {m_coin1, m_coin2, 4'b0000, m_start1, m_start2};
+wire [7:0] in2_nibbler  = {m_start1, m_start2, 4'b0000, m_coin1, m_coin2};
 
 // --- Per-game mux ---
 reg [7:0] snk_in0, snk_in1, snk_in2;

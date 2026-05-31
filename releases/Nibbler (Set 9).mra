@@ -20,7 +20,7 @@
         <dip name="Coinage" bits="6,7" ids="1C/1C,2C/1C,2C/1C 4C/3,1C/1C 2C/3"/>
     </switches>
 
-    <buttons names="Coin,Start 1P,Start 2P,Pause" default="Start,Select,R,L"/>
+    <buttons names="Unused1,Unused2,Unused3,Unused4,Coin,Start 1P,Start 2P,Pause" default="A,B,X,Y,Select,Start,R,L"/>
 
     <!-- ROM index 0: game data -->
     <rom index="0" zip="nibbler.zip" md5="none">

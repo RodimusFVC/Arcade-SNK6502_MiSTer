@@ -14,7 +14,7 @@
     <switches default="00" base="16">
     </switches>
 
-    <buttons names="Fire Left,Fire Right,Fire Up,Fire Down,Start 1P,Start 2P,Coin,Pause" default="A,B,X,Y,Start,Select,R,L"/>
+    <buttons names="Fire Right,Fire Down,Fire Up,Fire Left,Coin,Start 1P,Start 2P,Pause" default="A,B,X,Y,Select,Start,R,L"/>
 
     <rom index="0" zip="vanguard.zip" md5="none">
 
